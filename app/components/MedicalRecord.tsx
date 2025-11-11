@@ -12,9 +12,8 @@ export default function MedicalRecord({ data }: MedicalRecordProps) {
   const [editableData, setEditableData] = useState<MedicalRecordData | null>(null);
 
   useEffect(() => {
-    if (data) {
-      setEditableData(data);
-    }
+    // Actualizar editableData cuando data cambia (incluyendo cuando se vuelve null)
+    setEditableData(data);
   }, [data]);
 
   if (!editableData) {
