@@ -52,6 +52,11 @@ export default function Home() {
     setError('');
   };
 
+  const handleClear = () => {
+    setMedicalRecord(null);
+    setError('');
+  };
+
   if (showConsultation) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-200">
@@ -104,7 +109,10 @@ export default function Home() {
             {/* Componentes principales */}
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
               <div className="h-full">
-                <VoiceRecorder onTranscriptionComplete={handleTranscriptionComplete} />
+                <VoiceRecorder 
+                  onTranscriptionComplete={handleTranscriptionComplete}
+                  onClear={handleClear}
+                />
               </div>
               <div className="h-full">
                 <MedicalRecord data={medicalRecord} />

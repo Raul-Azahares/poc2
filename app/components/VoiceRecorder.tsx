@@ -4,9 +4,10 @@ import { useState, useEffect, useRef } from 'react';
 
 interface VoiceRecorderProps {
   onTranscriptionComplete: (transcript: string) => void;
+  onClear?: () => void;
 }
 
-export default function VoiceRecorder({ onTranscriptionComplete }: VoiceRecorderProps) {
+export default function VoiceRecorder({ onTranscriptionComplete, onClear }: VoiceRecorderProps) {
   const [isRecording, setIsRecording] = useState(false);
   const [transcript, setTranscript] = useState('');
   const [isSupported, setIsSupported] = useState(true);
@@ -188,6 +189,11 @@ export default function VoiceRecorder({ onTranscriptionComplete }: VoiceRecorder
   const clearTranscript = () => {
     setTranscript('');
     setError('');
+    setInterimText('');
+    // Llamar a la función onClear del padre para resetear el Medical Record
+    if (onClear) {
+      onClear();
+    }
   };
 
   const handleManualSubmit = () => {
