@@ -12,6 +12,7 @@ export default function VoiceRecorder({ onTranscriptionComplete }: VoiceRecorder
   const [isSupported, setIsSupported] = useState(true);
   const [error, setError] = useState('');
   const [manualText, setManualText] = useState('');
+  const [interimText, setInterimText] = useState(''); // Para mostrar texto en tiempo real
   const recognitionRef = useRef<any>(null);
 
   useEffect(() => {
@@ -33,6 +34,7 @@ export default function VoiceRecorder({ onTranscriptionComplete }: VoiceRecorder
       recognition.maxAlternatives = 1;
 
       recognition.onresult = (event: any) => {
+        console.log('🎤 Speech detected, processing...');
         let interimTranscript = '';
         let finalTranscript = '';
 
@@ -40,14 +42,26 @@ export default function VoiceRecorder({ onTranscriptionComplete }: VoiceRecorder
           const transcriptText = event.results[i][0].transcript;
           if (event.results[i].isFinal) {
             finalTranscript += transcriptText + ' ';
+            console.log('✓ Final transcript chunk:', transcriptText);
           } else {
             interimTranscript += transcriptText;
+            console.log('... Interim:', transcriptText);
           }
+        }
+
+        // Mostrar texto interim en tiempo real
+        if (interimTranscript) {
+          setInterimText(interimTranscript);
         }
 
         // Solo añadir el texto final al transcript acumulado
         if (finalTranscript) {
-          setTranscript((prev) => prev + finalTranscript);
+          setInterimText(''); // Limpiar interim cuando hay final
+          setTranscript((prev) => {
+            const newTranscript = prev + finalTranscript;
+            console.log('📝 Updated transcript length:', newTranscript.length);
+            return newTranscript;
+          });
         }
       };
 
@@ -93,8 +107,19 @@ export default function VoiceRecorder({ onTranscriptionComplete }: VoiceRecorder
     };
   }, []);
 
-  const startRecording = () => {
+  const startRecording = async () => {
     if (!isSupported) return;
+    
+    // Solicitar permisos de micrófono explícitamente
+    try {
+      console.log('🎤 Requesting microphone permission...');
+      await navigator.mediaDevices.getUserMedia({ audio: true });
+      console.log('✓ Microphone permission granted');
+    } catch (permError) {
+      console.error('❌ Microphone permission denied:', permError);
+      setError('Microphone permission denied. Please allow microphone access and try again.');
+      return;
+    }
     
     setTranscript('');
     setError('');
@@ -103,10 +128,10 @@ export default function VoiceRecorder({ onTranscriptionComplete }: VoiceRecorder
     try {
       if (recognitionRef.current) {
         recognitionRef.current.start();
-        console.log('Grabación iniciada');
+        console.log('🎙️ Recording started successfully');
       }
     } catch (error: any) {
-      console.error('Error al iniciar grabación:', error);
+      console.error('❌ Error starting recording:', error);
       if (error.message && error.message.includes('already started')) {
         // Si ya está iniciado, reiniciar
         recognitionRef.current?.stop();
@@ -114,7 +139,7 @@ export default function VoiceRecorder({ onTranscriptionComplete }: VoiceRecorder
           recognitionRef.current?.start();
         }, 100);
       } else {
-        setError('Error al iniciar la grabación. Recarga la página e intenta de nuevo.');
+        setError('Error starting recording. Please reload the page and try again.');
         setIsRecording(false);
       }
     }
@@ -132,26 +157,32 @@ export default function VoiceRecorder({ onTranscriptionComplete }: VoiceRecorder
       console.error('Error al detener:', error);
     }
     
-    // Procesar después de un delay
+    // Procesar después de un delay para asegurar que se capture todo
     setTimeout(() => {
       setTranscript((currentTranscript) => {
-        console.log('Transcript actual:', currentTranscript);
-        console.log('Longitud:', currentTranscript.length);
+        console.log('📊 Final transcript:', currentTranscript);
+        console.log('📏 Length:', currentTranscript.length);
+        console.log('📦 Trimmed length:', currentTranscript.trim().length);
         
         // Usar setTimeout para evitar el warning de React
         setTimeout(() => {
           if (currentTranscript.trim()) {
-            console.log('Enviando a procesar...');
+            console.log('✓ Sending to process...');
             onTranscriptionComplete(currentTranscript.trim());
           } else {
-            console.warn('⚠️ Transcript vacío, no se puede procesar');
-            setError('No se detectó ninguna transcripción. Intenta grabar de nuevo o usa la opción de texto manual.');
+            console.warn('⚠️ Empty transcript detected');
+            console.log('💡 Possible causes:');
+            console.log('  - No speech was detected during recording');
+            console.log('  - Microphone is not working');
+            console.log('  - Speech was too quiet');
+            console.log('  - Network connection interrupted');
+            setError('No transcription detected. Please check:\n• Microphone is working\n• You spoke clearly during recording\n• Internet connection is stable\n\nTry again or use manual text input.');
           }
         }, 0);
         
         return currentTranscript;
       });
-    }, 500);
+    }, 1000); // Aumentado a 1 segundo para dar más tiempo
   };
 
   const clearTranscript = () => {
@@ -217,9 +248,19 @@ export default function VoiceRecorder({ onTranscriptionComplete }: VoiceRecorder
       </div>
 
       {isRecording && (
-        <div className="flex items-center gap-3 mb-4 text-red-600">
-          <div className="w-3 h-3 bg-red-600 rounded-full animate-pulse"></div>
-          <span className="font-semibold">Recording... Speak now</span>
+        <div className="mb-4">
+          <div className="flex items-center gap-3 text-red-600 mb-2">
+            <div className="w-3 h-3 bg-red-600 rounded-full animate-pulse"></div>
+            <span className="font-semibold">Recording... Speak now</span>
+          </div>
+          {interimText && (
+            <div className="bg-blue-50 border-l-4 border-blue-500 p-3 rounded">
+              <p className="text-sm text-blue-800">
+                <span className="font-semibold">Detecting: </span>
+                <span className="italic">{interimText}</span>
+              </p>
+            </div>
+          )}
         </div>
       )}
 
